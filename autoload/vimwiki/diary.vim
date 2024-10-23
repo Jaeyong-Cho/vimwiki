@@ -101,7 +101,7 @@ function! vimwiki#diary#diary_date_link(...) abort
     let l:computed_timestamp = localtime() + l:delta_periods*l:day_s
   endif
 
-  return strftime('%Y-%m-%d', l:computed_timestamp)
+  return strftime('%Y/%m/%Y-%m-%d', l:computed_timestamp)
 
 endfunction
 
@@ -234,7 +234,7 @@ function! vimwiki#diary#get_diary_files() abort
   " Return: <list> diary file names
   let rx = '^\d\{4}-\d\d-\d\d'
   let s_files = glob(vimwiki#vars#get_wikilocal('path').
-        \ vimwiki#vars#get_wikilocal('diary_rel_path').'*'.vimwiki#vars#get_wikilocal('ext'))
+        \ vimwiki#vars#get_wikilocal('diary_rel_path').'*/*/*'.vimwiki#vars#get_wikilocal('ext'))
   let files = split(s_files, '\n')
   call filter(files, 'fnamemodify(v:val, ":t") =~# "'.escape(rx, '\').'"')
 
@@ -363,6 +363,10 @@ function! vimwiki#diary#goto_next_day() abort
   " Jump to next day
   let link = ''
   let [idx, links] = s:get_position_links(expand('%:t:r'))
+  let my_links = map(vimwiki#diary#get_diary_files(), 'fnamemodify(v:val, ":p:r")')
+  for i in range(0, len(my_links) - 1)
+    let my_links[i] = substitute(my_links[i], s:diary_path(), '', '')
+  endfor
 
   if idx == (len(links) - 1)
     return
@@ -370,6 +374,7 @@ function! vimwiki#diary#goto_next_day() abort
 
   if idx != -1 && idx < len(links) - 1
     let link = 'diary:'.links[idx+1]
+    let link = 'diary:'.my_links[idx+1]
   else
     " goto today
     let link = 'diary:'.vimwiki#diary#diary_date_link()
@@ -385,6 +390,10 @@ function! vimwiki#diary#goto_prev_day() abort
   " Jump to previous day
   let link = ''
   let [idx, links] = s:get_position_links(expand('%:t:r'))
+  let my_links = map(vimwiki#diary#get_diary_files(), 'fnamemodify(v:val, ":p:r")')
+  for i in range(0, len(my_links) - 1)
+    let my_links[i] = substitute(my_links[i], s:diary_path(), '', '')
+  endfor
 
   if idx == 0
     return
@@ -392,6 +401,7 @@ function! vimwiki#diary#goto_prev_day() abort
 
   if idx > 0
     let link = 'diary:'.links[idx-1]
+    let link = 'diary:'.my_links[idx-1]
   else
     " goto today
     let link = 'diary:'.vimwiki#diary#diary_date_link()
@@ -449,8 +459,14 @@ function! vimwiki#diary#generate_diary_section() abort
             let top_link_tpl = link_tpl
           endif
 
+          let my_fl = "__Directory__/__Filename__"
+          let my_fl = substitute(my_fl, '__Filename__', fl, "")
+          let fl = substitute(fl, "-", "/", "")
+          let fl = substitute(fl, "-[0-9][0-9]", "", "")
+          let my_fl = substitute(my_fl, "__Directory__", fl, "")
+
           let bullet = vimwiki#lst#default_symbol().' '
-          let entry = substitute(top_link_tpl, '__LinkUrl__', fl, '')
+          let entry = substitute(top_link_tpl, '__LinkUrl__', my_fl, '')
           let entry = substitute(entry, '__LinkDescription__', topcap, '')
           let wiki_nr = vimwiki#vars#get_bufferlocal('wiki_nr')
           let extension = vimwiki#vars#get_wikilocal('ext', wiki_nr)
@@ -467,7 +483,7 @@ function! vimwiki#diary#generate_diary_section() abort
             if empty(subcap)
               continue
             endif
-            let entry = substitute(link_tpl, '__LinkUrl__', fl.'#'.subcap, '')
+            let entry = substitute(link_tpl, '__LinkUrl__', my_fl.'#'.subcap, '')
             let entry = substitute(entry, '__LinkDescription__', subcap, '')
             " if single H1 then depth H2=0, H3=1, H4=2, H5=3, H6=4
             " if multiple H1 then depth H1= 0, H2=1, H3=2, H4=3, H5=4, H6=5
@@ -506,7 +522,7 @@ function! vimwiki#diary#calendar_action(day, month, year, week, dir) abort
   let day = s:prefix_zero(a:day)
   let month = s:prefix_zero(a:month)
 
-  let link = a:year.'-'.month.'-'.day
+  let link = a:year.'/'.month.'/'.year.'-'.month.'-'.day
   if winnr('#') == 0
     if a:dir ==? 'V'
       vsplit
@@ -533,7 +549,7 @@ function! vimwiki#diary#calendar_sign(day, month, year) abort
   let day = s:prefix_zero(a:day)
   let month = s:prefix_zero(a:month)
   let sfile = vimwiki#vars#get_wikilocal('path') . vimwiki#vars#get_wikilocal('diary_rel_path')
-        \ . a:year.'-'.month.'-'.day.vimwiki#vars#get_wikilocal('ext')
+        \ . a:year.'/'.month.'/'.year.'-'.month.'-'.day.vimwiki#vars#get_wikilocal('ext')
   return filereadable(expand(sfile))
 endfunction
 
